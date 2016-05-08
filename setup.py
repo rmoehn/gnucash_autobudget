@@ -38,6 +38,12 @@ class CheckExtDepsInstallCommand(install):
 setup(name='gnucash_autobudget',
       version='0.1.0',
       description="Automatically adjust GnuCash transactions for envelope budgeting",
+      classifiers=[
+          'License :: OSI Approved :: MIT License',
+          'Programming Language :: Python :: 2.7',
+          'Topic :: Office/Business :: Financial :: Accounting',
+      ],
+      keywords="GnuCash budget YNAB",
       url="https://github.com/rmoehn/gnucash_autobudget",
       author="Richard Möhn",
       author_email="richard.moehn@posteo.de",
