@@ -42,7 +42,7 @@ def get_readme():
 
 
 setup(name='gnucash_autobudget',
-      version='0.1.0',
+      version='0.1.1',
       description="Automatically adjust GnuCash transactions for envelope budgeting",
       long_description=get_readme(),
       classifiers=[
