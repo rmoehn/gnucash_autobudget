@@ -36,6 +36,13 @@ This will create a file ``out.gnucash`` which is the same as
 ``in.gnucash`` except that the transactions for which it applies will
 have budgeting entries added to them.
 
+If you only want to add budgeting entries to transactions starting from, say 21
+October 2015, you can do it like this:
+
+::
+
+    $ gnucash_autobudget --start 2015-10-21 in.gnucash out.gnucash
+
 
 Idea
 ----
@@ -69,7 +76,7 @@ GnuCash Autobudget expects a setup similar to the one shown there::
     Assets                      asset
         Cash                    asset
     Expenses                    expense     mandatory
-        Daily                   expense
+        Everyday                expense
             Groceries           expense
             Beer                expense
             Transportation      expense
@@ -78,7 +85,7 @@ GnuCash Autobudget expects a setup similar to the one shown there::
     Budget                      asset       mandatory
         Budgeted Funds          liability   mandatory
         Available to Budget     asset       mandatory 
-        Daily                   asset
+        Everyday                asset
             Groceries           asset
             Transportation      asset
         Monthly                 asset
@@ -92,10 +99,11 @@ GnuCash Autobudget relies on the correspondence of subaccount names under
 Expenses and Budget. Namely…
 
 GnuCash Autobudget only looks at subaccounts of Expenses that have a
-corresponding subaccount in Budget. So for example, ``Expenses:Daily:Groceries``
-corresponds to ``Budget:Daily:Groceries``. If there is no corresponding
-subaccount for an account in Expenses, GnuCash Autobudget will ignore it. For
-example, it will ignore ``Expenses:Daily:Beer``.
+corresponding subaccount in Budget. So for example,
+``Expenses:Everyday:Groceries`` corresponds to ``Budget:Everyday:Groceries``. If
+there is no corresponding subaccount for an account in Expenses, GnuCash
+Autobudget will ignore it. For example, it will ignore
+``Expenses:Everyday:Beer``.
 
 
 What does it do?
@@ -104,16 +112,16 @@ What does it do?
 When GnuCash looks through those accounts, it looks for transactions that don't
 have a budget entry. Like this::
 
-    #                          debit  credit
-    Expenses:Daily:Groceries   100
-    Assets:Cash                       100
+    #                            debit  credit
+    Expenses:Everyday:Groceries  100
+    Assets:Cash                         100
 
 It then adds budget entries to them::
 
-    Expenses:Daily:Groceries   100
-    Assets:Cash                       100
-    Budget:Budgeted Funds      100
-    Budget:Daily:Groceries            100
+    Expenses:Everyday:Groceries  100
+    Assets:Cash                         100
+    Budget:Budgeted Funds        100
+    Budget:Everyday:Groceries           100
 
 That means you can record your transactions as usual and GnuCash Autobudget adds
 the obvious information, so that your budgeting accounts will show the right
@@ -126,35 +134,35 @@ Split transactions
 
 GnuCash Autobudget can also deal with split transactions. Input::
 
-    Expenses:Daily:Food        70
-    Expenses:Daily:Drink       10
-    Assets:Cash                       80
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Drink      10
+    Assets:Cash                         80
 
 Output::
 
-    Expenses:Daily:Food        70
-    Expenses:Daily:Drink       10
-    Assets:Cash                       80
-    Budget:Budgeted Funds      80
-    Budget:Daily:Food                 70
-    Budget:Daily:Drink                10
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Drink      10
+    Assets:Cash                         80
+    Budget:Budgeted Funds        80
+    Budget:Everyday:Food                70
+    Budget:Everyday:Drink               10
 
 Multi-currency splits work, too. Input::
 
-    #                                debit  credit
-    Expenses:Daily:Groceries         2 €
-    Currency Trading:CURRENCY:JPY    250
-    Assets:Cash:Yen                         250
-    Currency Trading:CURRENCY:EUR           2 €
+    #                              debit  credit
+    Expenses:Everyday:Groceries    2 €
+    Currency Trading:CURRENCY:JPY  250
+    Assets:Cash:Yen                       250
+    Currency Trading:CURRENCY:EUR         2 €
     
 Output::
 
-    Expenses:Daily:Groceries         2 €
-    Currency Trading:CURRENCY:JPY    250
-    Assets:Cash:Yen                         250
-    Currency Trading:CURRENCY:EUR           2 €
-    Budget:Budgeted Funds            2 €
-    Budget:Daily:Groceries                  2 €
+    Expenses:Everyday:Groceries    2 €
+    Currency Trading:CURRENCY:JPY  250
+    Assets:Cash:Yen                       250
+    Currency Trading:CURRENCY:EUR         2 €
+    Budget:Budgeted Funds          2 €
+    Budget:Everyday:Groceries             2 €
 
 
 Wish list poll
