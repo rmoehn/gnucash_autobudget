@@ -13,28 +13,12 @@ import gnucash.gnucash_core_c as gc
 
 from gnucash_autobudget import core as mut
 
-##### A helper procedure
+#### Custom TestCase
 
-def account(book, name, acct_type, children=None):
-    acct = Account(book)
-    acct.SetName(name)
-    acct.SetType(acct_type)
-    for c in children or []:
-        acct.append_child(c)
-
-    return acct
-
-
-##### Class for testing _ensure_mandatory_structure()
-
-# Make the following code more readable.
-ASSET = gc.ACCT_TYPE_ASSET
-EQUITY = gc.ACCT_TYPE_EQUITY
-EXPENSE = gc.ACCT_TYPE_EXPENSE
-LIABILITY = gc.ACCT_TYPE_LIABILITY
-ROOT = gc.ACCT_TYPE_ROOT
-
-class TestEnsureMandatoryStructure(TestCase):
+class SessionTestCase(TestCase):
+    """
+    A :py:class:`TestCase` providing :py:class:`gnucash.Session` setup and teardown.
+    """
 
     # Note: I suspect that creating and deleting a temporary file for every test
     # method would be too much. We're not writing to it anyway. This is why I
@@ -46,23 +30,41 @@ class TestEnsureMandatoryStructure(TestCase):
             = tempfile.mkstemp(suffix=".xac")
         os.close(_session_file_handle)
 
-
     @classmethod
     def tearDownClass(cls):
         os.unlink(cls._session_file_name)
 
-
     def setUp(self):
-        s = Session("xml://{}".format(self._session_file_name),
+        self.session = Session("xml://{}".format(self._session_file_name),
                                is_new=True)
-        self.session = s
-
 
     def tearDown(self):
         self.session.end()
         self.session.destroy()
 
 
+#### A helper procedure
+
+def account(book, name, acct_type, children=None):
+    acct = Account(book)
+    acct.SetName(name)
+    acct.SetType(acct_type)
+    for c in children or []:
+        acct.append_child(c)
+
+    return acct
+
+
+#### Class for testing _ensure_mandatory_structure()
+
+# Make the following code more readable.
+ASSET = gc.ACCT_TYPE_ASSET
+EQUITY = gc.ACCT_TYPE_EQUITY
+EXPENSE = gc.ACCT_TYPE_EXPENSE
+LIABILITY = gc.ACCT_TYPE_LIABILITY
+ROOT = gc.ACCT_TYPE_ROOT
+
+class TestEnsureMandatoryStructure(SessionTestCase):
     def test_all_proper(self):
         book = self.session.book # Just to make the following shorter.
 
