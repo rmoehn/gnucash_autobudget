@@ -129,7 +129,7 @@ information. Of course, GnuCash Autobudget won't touch transactions that already
 have a budget entry.
 
 
-Split transactions
+Other transactions
 ------------------
 
 GnuCash Autobudget can also deal with split transactions. Input::
@@ -146,6 +146,19 @@ Output::
     Budget:Budgeted Funds        80
     Budget:Everyday:Food                70
     Budget:Everyday:Drink               10
+
+Sometimes you get refunds on your expenses. Credit transactions to expense
+accounts work, too. Input::
+
+    Expenses:Everyday:Food              5
+    Assets:Cash                  5
+
+Output::
+
+    Assets:Cash                  5
+    Expenses:Everyday:Food              5
+    Budget:Everyday:Food         5
+    Budget:Budgeted Funds               5
 
 Multi-currency splits work, too. Input::
 
