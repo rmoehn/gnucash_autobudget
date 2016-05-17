@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 
 from __future__ import print_function, unicode_literals
 
@@ -44,20 +45,20 @@ class TestEnsureAccountPresent(TestCase):
                                is_new=True)
         self.session = s
 
-        self.root_account \
-            = new_account(s.book, b"Root", gc.ACCT_TYPE_ROOT,
-                  [new_account(s.book, b"Expenses", gc.ACCT_TYPE_EXPENSE),
-                   new_account(s.book, b"Budget", gc.ACCT_TYPE_ASSET,
-                       [new_account(s.book, b"Budgeted Funds",
-                                    gc.ACCT_TYPE_LIABILITY),
-                        new_account(s.book, b"Available to Budget",
-                                    gc.ACCT_TYPE_ASSET)])])
-
 
     def tearDown(self):
         self.session.end()
         self.session.destroy()
 
 
-    def test_all_there(self):
-        mut._ensure_mandatory_structure(self.root_account)
+    def test_all_proper(self):
+        book = self.session.book # Just to make the following shorter.
+
+        mut._ensure_mandatory_structure(
+            new_account(book, b"Root", gc.ACCT_TYPE_ROOT,
+                [new_account(book, b"Expenses", gc.ACCT_TYPE_EXPENSE),
+                 new_account(book, b"Budget", gc.ACCT_TYPE_ASSET,
+                     [new_account(book, b"Budgeted Funds",
+                                  gc.ACCT_TYPE_LIABILITY),
+                      new_account(book, b"Available to Budget",
+                                  gc.ACCT_TYPE_ASSET)])]))
