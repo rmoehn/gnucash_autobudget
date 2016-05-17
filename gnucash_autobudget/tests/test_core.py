@@ -2,6 +2,7 @@
 
 from __future__ import print_function, unicode_literals
 
+import os
 import tempfile
 from unittest import TestCase
 
@@ -22,10 +23,24 @@ def new_account(book, name, acct_type, children=None):
 
 
 class TestEnsureAccountPresent(TestCase):
-    def setUp(self):
-        (self.session_file_handle, session_file_name) \
+    # Note: I suspect that creating and deleting a temporary file for every test
+    # method would be too much. We're not writing to it anyway. This is why I
+    # implement this as a setUpClass(). If you have a different opinion, tell
+    # me.
+    @classmethod
+    def setUpClass(cls):
+        _session_file_handle, cls._session_file_name \
             = tempfile.mkstemp(suffix=".xac")
-        s = Session(b"xml://{}".format(session_file_name),
+        os.close(_session_file_handle)
+
+
+    @classmethod
+    def tearDownClass(cls):
+        os.unlink(cls._session_file_name)
+
+
+    def setUp(self):
+        s = Session(b"xml://{}".format(self._session_file_name),
                                is_new=True)
         self.session = s
 
@@ -37,6 +52,11 @@ class TestEnsureAccountPresent(TestCase):
                                     gc.ACCT_TYPE_LIABILITY),
                         new_account(s.book, b"Available to Budget",
                                     gc.ACCT_TYPE_ASSET)])])
+
+
+    def tearDown(self):
+        self.session.end()
+        self.session.destroy()
 
 
     def test_all_there(self):
