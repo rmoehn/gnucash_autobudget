@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=protected-access
 
-from __future__ import print_function, unicode_literals
+# Note: No unicode literals, because the GnuCash Python bindings don't like
+# unicode.
 
 import os
 import tempfile
@@ -12,8 +13,9 @@ import gnucash.gnucash_core_c as gc
 
 from gnucash_autobudget import core as mut
 
+##### A helper procedure
 
-def new_account(book, name, acct_type, children=None):
+def account(book, name, acct_type, children=None):
     acct = Account(book)
     acct.SetName(name)
     acct.SetType(acct_type)
@@ -23,7 +25,17 @@ def new_account(book, name, acct_type, children=None):
     return acct
 
 
-class TestEnsureAccountPresent(TestCase):
+##### Class for testing _ensure_mandatory_structure()
+
+# Make the following code more readable.
+ASSET = gc.ACCT_TYPE_ASSET
+EQUITY = gc.ACCT_TYPE_EQUITY
+EXPENSE = gc.ACCT_TYPE_EXPENSE
+LIABILITY = gc.ACCT_TYPE_LIABILITY
+ROOT = gc.ACCT_TYPE_ROOT
+
+class TestEnsureMandatoryStructure(TestCase):
+
     # Note: I suspect that creating and deleting a temporary file for every test
     # method would be too much. We're not writing to it anyway. This is why I
     # implement this as a setUpClass(). If you have a different opinion, tell
@@ -41,7 +53,7 @@ class TestEnsureAccountPresent(TestCase):
 
 
     def setUp(self):
-        s = Session(b"xml://{}".format(self._session_file_name),
+        s = Session("xml://{}".format(self._session_file_name),
                                is_new=True)
         self.session = s
 
@@ -55,10 +67,45 @@ class TestEnsureAccountPresent(TestCase):
         book = self.session.book # Just to make the following shorter.
 
         mut._ensure_mandatory_structure(
-            new_account(book, b"Root", gc.ACCT_TYPE_ROOT,
-                [new_account(book, b"Expenses", gc.ACCT_TYPE_EXPENSE),
-                 new_account(book, b"Budget", gc.ACCT_TYPE_ASSET,
-                     [new_account(book, b"Budgeted Funds",
-                                  gc.ACCT_TYPE_LIABILITY),
-                      new_account(book, b"Available to Budget",
-                                  gc.ACCT_TYPE_ASSET)])]))
+            account(book, "Root", ROOT,
+                [account(book, "Expenses", EXPENSE),
+                 account(book, "Budget", ASSET,
+                     [account(book, "Budgeted Funds", LIABILITY),
+                      account(book, "Available to Budget", ASSET)])]))
+
+
+    def test_additional_accounts_ok(self):
+        book = self.session.book # Just to make the following shorter.
+
+        mut._ensure_mandatory_structure(
+            account(book, "Root", ROOT,
+                [account(book, "Starting Balance", EQUITY),
+                 account(book, "Expenses", EXPENSE,
+                     [account(book, "Everyday", EXPENSE,
+                         [account(book, "Groceries", EXPENSE)])]),
+                 account(book, "Budget", ASSET,
+                     [account(book, "Budgeted Funds", LIABILITY),
+                      account(book, "Available to Budget", ASSET)])]))
+
+
+    def test_wrong_type(self):
+        book = self.session.book # Just to make the following shorter.
+
+        with self.assertRaises(mut.InputException):
+            mut._ensure_mandatory_structure(
+                account(book, "Root", ROOT,
+                    [account(book, "Expenses", EXPENSE),
+                     account(book, "Budget", ASSET,
+                         [account(book, "Budgeted Funds", LIABILITY),
+                          account(book, "Available to Budget", LIABILITY)])]))
+
+
+    def test_acc_missing(self):
+        book = self.session.book # Just to make the following shorter.
+
+        with self.assertRaises(mut.InputException):
+            mut._ensure_mandatory_structure(
+                account(book, "Root", ROOT,
+                    [account(book, "Expenses", EXPENSE),
+                     account(book, "Budget", ASSET,
+                         [account(book, "Available to Budget", ASSET)])]))

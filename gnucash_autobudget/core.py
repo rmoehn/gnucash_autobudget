@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Credits: https://github.com/hjacobs/gnucash-fiximports/blob/master/fiximports.py
+# Note: No unicode literals, because the GnuCash Python bindings don't like
+# unicode.
 
-from __future__ import print_function, unicode_literals
+# Credits: https://github.com/hjacobs/gnucash-fiximports/blob/master/fiximports.py
 
 import re
 import textwrap
@@ -29,7 +30,7 @@ def paragraphs(u):
     https://gist.github.com/rmoehn/acecb206d44af2053364.
     """
 
-    assert isinstance(u, unicode)
+    assert isinstance(u, str)
 
     masked        = re.sub(r"\a\n", "\x01", u)
     stripped      = masked.rstrip().lstrip('\n')
@@ -60,7 +61,7 @@ def _ensure_account_present(root_account, acc_name, acc_type):
         raise InputException(paragraphs("""
             The GnuCash file you provided does not define an {acc_type} account
             named '{name}', but it is required for GnuCash Autocomplete to work.
-            """.format(type=acc_type, name=acc_name.replace('.', ':'))))
+            """.format(acc_type=acc_type, name=acc_name.replace('.', ':'))))
 
 
 def _ensure_mandatory_structure(root_account):
@@ -80,7 +81,6 @@ def _expense_to_budget_matching(root_account):
                           for a in budget_accs}
     return {e: b for b, e in enumerate(budget2expense) if
                 root_account.root_account.lookup_by_full_name(e)}
-
 
 
 def add_budget_entries(session, start_date=None):
