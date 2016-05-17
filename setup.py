@@ -58,4 +58,6 @@ setup(name='gnucash_autobudget',
       include_package_data=True,
       zip_safe=True,
       cmdclass={ 'install': CheckExtDepsInstallCommand },
+      test_suite='nose.collector',
+      tests_require=['nose'],
 )
