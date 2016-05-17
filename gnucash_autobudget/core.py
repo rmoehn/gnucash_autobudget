@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Credits: https://github.com/hjacobs/gnucash-fiximports/blob/master/fiximports.py
@@ -19,6 +18,8 @@ import gnucash.gnucash_core_c as gc
 # - Find the expense entries.
 # - Generate an entry for Budgeted Funds and the corresponding budget account.
 # - Add them to the transaction. ← Only non-functional step.
+
+# TODO: Make sure that we're adding transactions in the right currency.
 
 def paragraphs(u):
     """
