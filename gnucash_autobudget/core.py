@@ -71,16 +71,27 @@ def _ensure_mandatory_structure(root_account):
     _ensure_account_present(root_account, "Budget.Available to Budget", 'asset')
 
 
+def _is_regular_budget_acc(acc):
+    return acc.get_full_name() not in {"Budget.Budgeted Funds",
+                                       "Budget.Available to Budget"} \
+               and not acc.GetPlaceholder() \
+               and acc.GetType() == gc.ACCT_TYPE_ASSET
+
+
+def _is_regular_expense_acc(acc):
+    return not acc.GetPlaceholder() and acc.GetType() == gc.ACCT_TYPE_EXPENSE
+
+
 def _expense_to_budget_matching(root_account):
     budget_accs  = [a for a in
                        root_account.lookup_by_name("Budget").get_descendants()
-                       if a.get_full_name() not in
-                           {"Budget.Budgeted Funds",
-                            "Budget.Available to Budget"}]
-    budget2expense = {a: re.sub(r"\ABudget", "Expenses", a)
-                          for a in budget_accs}
-    return {e: b for b, e in enumerate(budget2expense) if
-                root_account.root_account.lookup_by_full_name(e)}
+                       if _is_regular_budget_acc(a)]
+    budget2expense = {ba: root_account.lookup_by_full_name(
+                              re.sub(r"\ABudget", "Expenses",
+                                     ba.get_full_name()))
+                          for ba in budget_accs}
+    return {e: b for b, e in budget2expense.items()
+                 if e and _is_regular_expense_acc(e)}
 
 
 def add_budget_entries(session, start_date=None):
