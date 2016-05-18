@@ -46,10 +46,11 @@ class SessionTestCase(TestCase):
 
 #### A helper procedure
 
-def new_account(book, name, acct_type, children=None):
+def new_account(book, name, acct_type, children=None, is_placeholder=False):
     acct = Account(book)
     acct.SetName(name)
     acct.SetType(acct_type)
+    acct.SetPlaceholder(is_placeholder)
     for c in children or []:
         acct.append_child(c)
 
@@ -112,3 +113,65 @@ class TestEnsureMandatoryStructure(SessionTestCase):
                     [account("Expenses", EXPENSE),
                      account("Budget", ASSET,
                          [account("Available to Budget", ASSET)])]))
+
+
+#### Class for testing _expense_to_budget_matching
+
+class TestExpenseToBudgetMatching(SessionTestCase):
+    def test_readme_example(self):
+        account  = partial(new_account, self.session.book)
+        paccount = partial(new_account, self.session.book, is_placeholder=True)
+
+        matching = mut._expense_to_budget_matching(
+                       account("Root", ROOT,
+                           [account("Expenses", EXPENSE,
+                                [paccount("Everyday", EXPENSE,
+                                     [account("Groceries", EXPENSE),
+                                      account("Beer", EXPENSE),
+                                      account("Transportation", EXPENSE)]),
+                                 paccount("Monthly", EXPENSE,
+                                     [account("Rent", EXPENSE)])]),
+                            account("Budget", ASSET,
+                                [account("Budgeted Funds", LIABILITY),
+                                 account("Available to Budget", ASSET),
+                                 paccount("Everyday", ASSET,
+                                     [account("Groceries", ASSET),
+                                      account("Transportation", ASSET)]),
+                                 paccount("Monthly", ASSET,
+                                     [account("Rent", ASSET)])])]))
+
+        self.assertEqual(
+            {"Expenses.Everyday.Groceries":      "Budget.Everyday.Groceries",
+             "Expenses.Everyday.Transportation": "Budget.Everyday.Transportation",
+             "Expenses.Monthly.Rent":            "Budget.Monthly.Rent",},
+            {ea.get_full_name(): ba.get_full_name()
+                for ea, ba in matching.items()})
+
+
+    def test_wrong_types_extra_budget(self):
+        account  = partial(new_account, self.session.book)
+        paccount = partial(new_account, self.session.book, is_placeholder=True)
+
+        matching = mut._expense_to_budget_matching(
+                       account("Root", ROOT,
+                           [account("Expenses", EXPENSE,
+                                [paccount("Everyday", EXPENSE,
+                                     [account("Groceries", EXPENSE),
+                                      account("Beer", EXPENSE),
+                                      account("Transportation", LIABILITY)]),
+                                 paccount("Monthly", EXPENSE,
+                                     [account("Rent", EXPENSE)])]),
+                            account("Budget", ASSET,
+                                [account("Budgeted Funds", LIABILITY),
+                                 account("Available to Budget", ASSET),
+                                 paccount("Everyday", ASSET,
+                                     [account("Groceries", ASSET),
+                                      account("Transportation", ASSET)]),
+                                 paccount("Monthly", ASSET,
+                                     [account("Rent", EQUITY),
+                                      account("Sunscreen", ASSET)])])]))
+
+        self.assertEqual(
+            {"Expenses.Everyday.Groceries":      "Budget.Everyday.Groceries",},
+            {ea.get_full_name(): ba.get_full_name()
+                for ea, ba in matching.items()})
