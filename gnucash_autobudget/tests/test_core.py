@@ -4,6 +4,7 @@
 # Note: No unicode literals, because the GnuCash Python bindings don't like
 # unicode.
 
+from functools import partial
 import os
 import tempfile
 from unittest import TestCase
@@ -45,7 +46,7 @@ class SessionTestCase(TestCase):
 
 #### A helper procedure
 
-def account(book, name, acct_type, children=None):
+def new_account(book, name, acct_type, children=None):
     acct = Account(book)
     acct.SetName(name)
     acct.SetType(acct_type)
@@ -66,48 +67,48 @@ ROOT = gc.ACCT_TYPE_ROOT
 
 class TestEnsureMandatoryStructure(SessionTestCase):
     def test_all_proper(self):
-        book = self.session.book # Just to make the following shorter.
+        account = partial(new_account, self.session.book)
 
         mut._ensure_mandatory_structure(
-            account(book, "Root", ROOT,
-                [account(book, "Expenses", EXPENSE),
-                 account(book, "Budget", ASSET,
-                     [account(book, "Budgeted Funds", LIABILITY),
-                      account(book, "Available to Budget", ASSET)])]))
+            account("Root", ROOT,
+                [account("Expenses", EXPENSE),
+                 account("Budget", ASSET,
+                     [account("Budgeted Funds", LIABILITY),
+                      account("Available to Budget", ASSET)])]))
 
 
     def test_additional_accounts_ok(self):
-        book = self.session.book # Just to make the following shorter.
+        account = partial(new_account, self.session.book)
 
         mut._ensure_mandatory_structure(
-            account(book, "Root", ROOT,
-                [account(book, "Starting Balance", EQUITY),
-                 account(book, "Expenses", EXPENSE,
-                     [account(book, "Everyday", EXPENSE,
-                         [account(book, "Groceries", EXPENSE)])]),
-                 account(book, "Budget", ASSET,
-                     [account(book, "Budgeted Funds", LIABILITY),
-                      account(book, "Available to Budget", ASSET)])]))
+            account("Root", ROOT,
+                [account("Starting Balance", EQUITY),
+                 account("Expenses", EXPENSE,
+                     [account("Everyday", EXPENSE,
+                         [account("Groceries", EXPENSE)])]),
+                 account("Budget", ASSET,
+                     [account("Budgeted Funds", LIABILITY),
+                      account("Available to Budget", ASSET)])]))
 
 
     def test_wrong_type(self):
-        book = self.session.book # Just to make the following shorter.
+        account = partial(new_account, self.session.book)
 
         with self.assertRaises(mut.InputException):
             mut._ensure_mandatory_structure(
-                account(book, "Root", ROOT,
-                    [account(book, "Expenses", EXPENSE),
-                     account(book, "Budget", ASSET,
-                         [account(book, "Budgeted Funds", LIABILITY),
-                          account(book, "Available to Budget", LIABILITY)])]))
+                account("Root", ROOT,
+                    [account("Expenses", EXPENSE),
+                     account("Budget", ASSET,
+                         [account("Budgeted Funds", LIABILITY),
+                          account("Available to Budget", LIABILITY)])]))
 
 
     def test_acc_missing(self):
-        book = self.session.book # Just to make the following shorter.
+        account = partial(new_account, self.session.book)
 
         with self.assertRaises(mut.InputException):
             mut._ensure_mandatory_structure(
-                account(book, "Root", ROOT,
-                    [account(book, "Expenses", EXPENSE),
-                     account(book, "Budget", ASSET,
-                         [account(book, "Available to Budget", ASSET)])]))
+                account("Root", ROOT,
+                    [account("Expenses", EXPENSE),
+                     account("Budget", ASSET,
+                         [account("Available to Budget", ASSET)])]))
