@@ -5,6 +5,7 @@
 
 # Credits: https://github.com/hjacobs/gnucash-fiximports/blob/master/fiximports.py
 
+from datetime import date
 import re
 import textwrap
 
@@ -94,8 +95,46 @@ def _expense_to_budget_matching(root_account):
                  if e and _is_regular_expense_acc(e)}
 
 
+# Hm, which transactions to we want to add to?
+# - If the transaction has a Split on an expense account, but no Split on the
+#   corresponding budget account.
+#
+# Which transactions do we not want to add to?
+# - If the transaction has a Split on an expense account and a Split of opposite
+#   amount on the corresponding budget account.
+#
+# Which transactions are doubtful?
+# - If the transaction has a Split on an expense account and a Split of
+#   different amount on the corresponding budget account.
+# - If the transaction has a Split on an expense account and a Split on a
+#   non-corresponding budget account.
+
+
+def _lacks_budget_entry(t):
+    _expense_to_budget_split_matching
+    return all(s.GetAccount() not in account_matching or
+
+
+def _trx_needs_budget_entry(t):
+    return date.fromtimestamp(t.GetDate()) >= start_date
+           and _lacks_budget_entry(t)
+
+
+def _find_trxs_for_budget(account_matching, start_date):
+    all_expense_trxs = [s.parent for s in ea.GetSplitList()
+                                 for ea in account_matching.keys()
+                                 if _is_interesting_trx(s.parent)]
+    trxs_after_start_date = [t for t in all_expense_trxs
+    interesting_trxs = [t for t in trxs_after_start_date
+                          if
+
+
+
 def add_budget_entries(session, start_date=None):
     root_account = session.book.get_root_account()
     _ensure_mandatory_structure(root_account)
     account_matching = _expense_to_budget_matching(root_account)
 
+    transactions = _find_trxs_for_budget(account_matching, start_date)
+    for t in transactions:
+        _add_budget_entry(t)
