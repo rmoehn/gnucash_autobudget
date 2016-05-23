@@ -110,23 +110,24 @@ def _expense_to_budget_matching(root_account):
 #   non-corresponding budget account.
 
 
-def _lacks_budget_entry(t):
-    _expense_to_budget_split_matching
-    return all(s.GetAccount() not in account_matching or
+def _trxs_for_budget(account_matching, start_date):
+    return {s.parent for s in ea.GetSplitList()
+                     for ea in account_matching.keys()
+                     if date.fromtimestamp(t.GetDate()) >= start_date}
 
 
-def _trx_needs_budget_entry(t):
-    return date.fromtimestamp(t.GetDate()) >= start_date
-           and _lacks_budget_entry(t)
+def _add_budget_entries(t):
+    for s in _unmatched_splits(t):
+        if s.GetAccount() in account_matching:
+            add_splits(t, _budget_splits(s))
+        else:
+            _logger.info("No budget account matching %s in transaction %s.",
+                 s.GetAccount(), stringify_tx(t))
 
 
-def _find_trxs_for_budget(account_matching, start_date):
-    all_expense_trxs = [s.parent for s in ea.GetSplitList()
-                                 for ea in account_matching.keys()
-                                 if _is_interesting_trx(s.parent)]
-    trxs_after_start_date = [t for t in all_expense_trxs
-    interesting_trxs = [t for t in trxs_after_start_date
-                          if
+    for s in _unbalanced_splits(t):
+        _logger.info("Budget line
+
 
 
 
@@ -135,6 +136,7 @@ def add_budget_entries(session, start_date=None):
     _ensure_mandatory_structure(root_account)
     account_matching = _expense_to_budget_matching(root_account)
 
-    transactions = _find_trxs_for_budget(account_matching, start_date)
-    for t in transactions:
-        _add_budget_entry(t)
+    for t in _trxs_for_budget(account_matching, start_date):
+        t.BeginEdit()
+        _add_budget_entries(t)
+        t.CommitEdit()

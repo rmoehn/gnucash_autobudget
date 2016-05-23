@@ -177,6 +177,36 @@ Output::
     Budget:Budgeted Funds          2 €
     Budget:Everyday:Groceries             2 €
 
+Splits with multiple lines for the same account work, too. Input::
+
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Food       10
+    Assets:Cash                         80
+
+Output::
+
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Food       10
+    Assets:Cash                         80
+    Budget:Budgeted Funds        80
+    Budget:Everyday:Food                70
+    Budget:Everyday:Food                10
+
+Splits with empty lines work, too. Input::
+
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Drink      
+    Assets:Cash                         70
+
+Output::
+
+    Expenses:Everyday:Food       70
+    Expenses:Everyday:Drink      
+    Assets:Cash                         70
+    Budget:Budgeted Funds        70
+    Budget:Everyday:Food                70
+    Budget:Everyday:Drink               
+
 
 Wish list poll
 --------------

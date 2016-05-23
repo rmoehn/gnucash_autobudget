@@ -27,8 +27,9 @@ class SessionTestCase(TestCase):
     # me.
     @classmethod
     def setUpClass(cls):
+        # TODO: Need to use a temporary directory!
         _session_file_handle, cls._session_file_name \
-            = tempfile.mkstemp(suffix=".xac")
+            = tempfile.mkstemp(suffix=".gnucash")
         os.close(_session_file_handle)
 
     @classmethod
