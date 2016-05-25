@@ -116,19 +116,74 @@ def _trxs_for_budget(account_matching, start_date):
                      if date.fromtimestamp(t.GetDate()) >= start_date}
 
 
+def _expense_to_budget_split_matching(t):
+    split_list = t.GetSplitList()
+    expense_splits = {s for s in split_list if _is_expense_split(s)}
+    budget_splits  = {s for s in split_list if _is_budget_split(s)}
+
+    # Note: You might think that a map comprehension would be better and more
+    # functional here, but it doesn't work. There might be transactions with
+    # multiple splits having the same amount and budget account. If we didn't
+    # remove them from the list of available budget splits, two expense splits
+    # might end up matched to the same budget split:
+    #
+    #     es1 = Expenses:Everyday:Food   4
+    #     es2 = Expenses:Everyday:Food   4
+    #     bs1 = Budget:Everyday:Food        4
+    #     bs2 = Budget:Everyday:Food        4
+    #
+    #     Matching: es1 → bs1, es2 → bs1
+    #
+    # I almost used a reduce() with Pyrsistent data structures here, but I
+    # shouldn't try to be too sophisticated for this small project.
+    es2bs = {}
+    for es in expense_splits:
+        bs = next([bs for bs in budget_splits
+                      if bs.GetAmount() == -es.GetAmount()
+                          and bs.GetAccount() == account_matching[es]],
+                  None)
+        es2bs[es] = bs
+        budget_splits.remove(bs)
+
+    assoc, _ = reduce(_add_matched_pair, expense_splits, ({}, budget_splits))
+    return {es: bs for es, bs in assoc}
+
+
+def _matching_budget_split(t, s):
+    corresp_acc_splits = {cas for cas in t.GetSplitList()
+                              if cas.GetAccount() ==
+                                  _expense_to_budget_matching(s.GetAccount())}
+
+
+
+
+def _unmatched_splits(t):
+    return {s for s in t.GetSplitList()
+              if s.GetAccount().HasAncestor(
+                     root_account.lookup_by_name("Expenses"))
+                  and not _matching_budget_split(t, s)}
+
+
+def _unbalanced_splits(t):
+    return {s for s in t.GetSplitList()
+              if s.GetAccount().HasAncestor(
+                     root_account.lookup_by_name("Budget"))
+                  and _is_regular_budget_acc(s.GetAccount())
+                  and not _matching_expense_split(t, s)}
+
+
+
 def _add_budget_entries(t):
     for s in _unmatched_splits(t):
         if s.GetAccount() in account_matching:
-            add_splits(t, _budget_splits(s))
+            _add_splits(t, _budget_splits(s))
         else:
-            _logger.info("No budget account matching %s in transaction %s.",
-                 s.GetAccount(), stringify_tx(t))
-
+            _logger.info("Transaction %s: No budget account matching %s.",
+                 stringify_tx(t), s.GetAccount())
 
     for s in _unbalanced_splits(t):
-        _logger.info("Budget line
-
-
+        _logger.warn("Transaction %s: Existing budget entry %s doesn't match"
+                     " any expense entry.")
 
 
 def add_budget_entries(session, start_date=None):
@@ -139,4 +194,6 @@ def add_budget_entries(session, start_date=None):
     for t in _trxs_for_budget(account_matching, start_date):
         t.BeginEdit()
         _add_budget_entries(t)
+        _combine_budget_funds_entries(t)
+        _ensure_sanity(t)
         t.CommitEdit()
