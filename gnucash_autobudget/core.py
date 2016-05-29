@@ -116,10 +116,24 @@ def _trxs_for_budget(account_matching, start_date):
                      if date.fromtimestamp(t.GetDate()) >= start_date}
 
 
-def _expense_to_budget_split_matching(t):
+def _is_expense_split(s, root_account):
+    return _is_regular_expense_acc(s.GetAccount()) \
+               and s.GetAccount().HasAncestor(
+                       root_account.lookup_by_name('Expenses'))
+
+
+def _is_budget_split(s, root_account):
+    return _is_regular_budget_acc(s.GetAccount()) \
+               and s.GetAccount().HasAncestor(
+                       root_account.lookup_by_name('Budget'))
+
+
+def _expense_to_budget_split_matching(t, root_account, account_matching):
     split_list = t.GetSplitList()
-    expense_splits = {s for s in split_list if _is_expense_split(s)}
-    budget_splits  = {s for s in split_list if _is_budget_split(s)}
+    expense_splits = {s for s in split_list
+                        if _is_expense_split(s, root_account)}
+    budget_splits  = {s for s in split_list
+                        if _is_budget_split(s, root_account)}
 
     # Note: You might think that a map comprehension would be better and more
     # functional here, but it doesn't work. There might be transactions with
@@ -145,8 +159,7 @@ def _expense_to_budget_split_matching(t):
         es2bs[es] = bs
         budget_splits.remove(bs)
 
-    assoc, _ = reduce(_add_matched_pair, expense_splits, ({}, budget_splits))
-    return {es: bs for es, bs in assoc}
+    return es2bs
 
 
 def _matching_budget_split(t, s):
