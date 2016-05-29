@@ -9,7 +9,7 @@ import os
 import tempfile
 from unittest import TestCase
 
-from gnucash import Session, Account
+from gnucash import Account, GncNumeric, Session, Split, Transaction
 import gnucash.gnucash_core_c as gc
 
 from gnucash_autobudget import core as mut
@@ -45,17 +45,53 @@ class SessionTestCase(TestCase):
         self.session.destroy()
 
 
-#### A helper procedure
+#### Helper procedures
 
 def new_account(book, name, acct_type, children=None, is_placeholder=False):
     acct = Account(book)
     acct.SetName(name)
+    if name == 'Root':
+        book.set_root_account(acct)
+    else:
+        acct.SetCommodity(book.get_table().lookup('CURRENCY', 'EUR'))
+
     acct.SetType(acct_type)
     acct.SetPlaceholder(is_placeholder)
     for c in children or []:
         acct.append_child(c)
 
     return acct
+
+
+def new_split(book, account, value):
+    if not isinstance(value, int):
+        raise NotImplementedError("This only handles ints. You provided {}."\
+                                      .format(value))
+
+    if value >= 0:
+        num = GncNumeric(value, 1)
+    else:
+        num = GncNumeric(-value, 1).neg()
+
+    s = Split(book)
+    s.SetAccount(account)
+    s.SetValue(num)
+    return s
+
+
+def new_transaction(book, description, entries):
+    t = Transaction(book)
+    splits = [new_split(book, account, value) for account, value in entries]
+
+    t.BeginEdit()
+    t.SetCurrency(book.get_table().lookup('CURRENCY', 'EUR'))
+    t.SetDescription(description)
+    for s in splits:
+        s.SetParent(t)
+    t.CommitEdit()
+
+    return t
+
 
 
 #### Class for testing _ensure_mandatory_structure()
@@ -176,3 +212,28 @@ class TestExpenseToBudgetMatching(SessionTestCase):
             {"Expenses.Everyday.Groceries":      "Budget.Everyday.Groceries",},
             {ea.get_full_name(): ba.get_full_name()
                 for ea, ba in matching.items()})
+
+
+#### Class for testing _expense_to_budget_split_matching
+
+class TestExpenseToBudgetSplitMatching(SessionTestCase):
+    def setUp(self):
+        account  = partial(new_account, self.session.book)
+        paccount = partial(new_account, self.session.book, is_placeholder=True)
+
+        self.root_account = account("Root", ROOT,
+                                [account("Expenses", EXPENSE,
+                                     [paccount("Everyday", EXPENSE,
+                                          [account("Groceries", EXPENSE),
+                                           account("Beer", EXPENSE),
+                                           account("Transportation", EXPENSE)]),
+                                      paccount("Monthly", EXPENSE,
+                                          [account("Rent", EXPENSE)])]),
+                                 account("Budget", ASSET,
+                                     [account("Budgeted Funds", LIABILITY),
+                                      account("Available to Budget", ASSET),
+                                      paccount("Everyday", ASSET,
+                                          [account("Groceries", ASSET),
+                                           account("Transportation", ASSET)]),
+                                      paccount("Monthly", ASSET,
+                                          [account("Rent", ASSET)])])])
