@@ -103,6 +103,7 @@ EXPENSE = gc.ACCT_TYPE_EXPENSE
 LIABILITY = gc.ACCT_TYPE_LIABILITY
 ROOT = gc.ACCT_TYPE_ROOT
 
+# REFACTOR: Move the partials out. (RM 2016-05-29)
 class TestEnsureMandatoryStructure(SessionTestCase):
     def test_all_proper(self):
         account = partial(new_account, self.session.book)
