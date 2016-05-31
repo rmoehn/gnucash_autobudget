@@ -63,7 +63,7 @@ def new_account(book, name, acct_type, children=None, is_placeholder=False):
     return acct
 
 
-def new_split(book, account, value):
+def new_split(book, account_nm, value):
     if not isinstance(value, int):
         raise NotImplementedError("This only handles ints. You provided {}."\
                                       .format(value))
@@ -74,14 +74,15 @@ def new_split(book, account, value):
         num = GncNumeric(-value, 1).neg()
 
     s = Split(book)
-    s.SetAccount(account)
     s.SetValue(num)
+    s.SetAccount(book.get_root_account().lookup_by_full_name(account_nm))
     return s
 
 
 def new_transaction(book, description, entries):
     t = Transaction(book)
-    splits = [new_split(book, account, value) for account, value in entries]
+    splits = [new_split(book, account_nm, value)
+                  for account_nm, value in entries]
 
     t.BeginEdit()
     t.SetCurrency(book.get_table().lookup('CURRENCY', 'EUR'))
@@ -91,7 +92,6 @@ def new_transaction(book, description, entries):
     t.CommitEdit()
 
     return t
-
 
 
 #### Class for testing _ensure_mandatory_structure()
