@@ -218,11 +218,14 @@ class TestExpenseToBudgetMatching(SessionTestCase):
 
 class TestExpenseToBudgetSplitMatching(SessionTestCase):
     def setUp(self):
+        super(TestExpenseToBudgetSplitMatching, self).setUp()
         account  = partial(new_account, self.session.book)
         paccount = partial(new_account, self.session.book, is_placeholder=True)
 
         self.root_account = account("Root", ROOT,
-                                [account("Expenses", EXPENSE,
+                                [paccount("Assets", ASSET,
+                                     [account("Cash", ASSET)]),
+                                 account("Expenses", EXPENSE,
                                      [paccount("Everyday", EXPENSE,
                                           [account("Groceries", EXPENSE),
                                            account("Beer", EXPENSE),
@@ -237,3 +240,15 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                            account("Transportation", ASSET)]),
                                       paccount("Monthly", ASSET,
                                           [account("Rent", ASSET)])])])
+
+    def test_easiest_trx(self):
+        self.assertEqual(
+            {},
+            mut._expense_to_budget_split_matching(
+                new_transaction(self.session.book,
+                                "weekly shopping",
+                                [("Expenses.Everyday.Groceries", 100),
+                                 ("Assets.Cash", -100)]),
+                self.session.book.get_root_account(),
+                mut._expense_to_budget_matching(self.session.book.get_root_account())))
+
