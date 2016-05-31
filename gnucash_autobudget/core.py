@@ -172,12 +172,13 @@ def _expense_to_budget_split_matching(t, root_account, account_matching):
     # shouldn't try to be too sophisticated for this small project.
     es2bs = {}
     for es in expense_splits:
-        bs = next([bs for bs in budget_splits
+        bs = next((bs for bs in budget_splits
                       if bs.GetAmount() == -es.GetAmount()
-                          and bs.GetAccount() == account_matching[es]],
+                          and bs.GetAccount() == account_matching[es]),
                   None)
-        es2bs[es] = bs
-        budget_splits.remove(bs)
+        if bs:
+            es2bs[es] = bs
+            budget_splits.remove(bs)
 
     return es2bs
 
