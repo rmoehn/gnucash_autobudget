@@ -23,7 +23,7 @@ import gnucash.gnucash_core_c as gc
 
 # TODO: Make sure that we're adding transactions in the right currency.
 
-def paragraphs(u):
+def _paragraphs(u):
     """
     Makes strings from triple-quoted string literals usable.
 
@@ -45,6 +45,26 @@ def paragraphs(u):
     return re.sub(r"\x01", "\n", spaces_for_ns)
 
 
+def _stringify_split(s):
+    return "{acc:45} {debit:>10} {credit:>10}".format(
+               acc=s.GetAccount().get_full_name(),
+               debit  = s.GetAmount().reduce().to_string()
+                            if s.GetAmount().positive_p()
+                            else "",
+               credit = s.GetAmount().neg().reduce().to_string()
+                            if s.GetAmount().negative_p()
+                            else "")
+
+
+def _stringify_trx(t):
+    splits = '\n'.join(["  " + _stringify_split(s) for s in t.GetSplitList()])
+    return "{time} {descr}\n{splits}".format(
+               time=date.fromtimestamp(t.GetDate()),
+               descr=t.GetDescription(),
+               splits=splits)
+
+
+
 class InputException(Exception):
     """
     An exception to be raised when the user provided unsuitable input
@@ -59,7 +79,7 @@ def _ensure_account_present(root_account, acc_name, acc_type):
 
     account = root_account.lookup_by_full_name(acc_name)
     if not (account and account.GetType() == acc_type2const[acc_type]):
-        raise InputException(paragraphs("""
+        raise InputException(_paragraphs("""
             The GnuCash file you provided does not define an {acc_type} account
             named '{name}', but it is required for GnuCash Autocomplete to work.
             """.format(acc_type=acc_type, name=acc_name.replace('.', ':'))))
@@ -192,7 +212,7 @@ def _add_budget_entries(t):
             _add_splits(t, _budget_splits(s))
         else:
             _logger.info("Transaction %s: No budget account matching %s.",
-                 stringify_tx(t), s.GetAccount())
+                 _stringify_trx(t), s.GetAccount())
 
     for s in _unbalanced_splits(t):
         _logger.warn("Transaction %s: Existing budget entry %s doesn't match"
