@@ -9,6 +9,7 @@ from datetime import date
 import re
 import textwrap
 
+from gnucash import Account, Session, Split, Transaction
 import gnucash.gnucash_core_c as gc
 
 # What do I have to do?
@@ -63,6 +64,25 @@ def _stringify_trx(t):
                descr=t.GetDescription(),
                splits=splits)
 
+
+def _root_account(o):
+    if isinstance(o, Session):
+        return o.book.get_root_account()
+    elif isinstance(o, Account):
+        return o.get_root()
+    elif isinstance(o, Transaction):
+        splits = o.GetSplitList()
+        if splits:
+            return _root_account(splits[0].GetAccount())
+        else:
+            raise ValueError(
+                "This transaction has no Splits and therefore no account and"
+                " therefore no root account: {}".format(_stringify_trx(o)))
+    elif isinstance(o, Split):
+        return _root_account(o.GetAccount())
+    else:
+        raise ValueError(
+            "Cannot find root account for this object: {}".format(o))
 
 
 class InputException(Exception):
@@ -136,24 +156,25 @@ def _trxs_for_budget(account_matching, start_date):
                      if date.fromtimestamp(t.GetDate()) >= start_date}
 
 
-def _is_expense_split(s, root_account):
+def _is_expense_split(s):
     return _is_regular_expense_acc(s.GetAccount()) \
                and s.GetAccount().HasAncestor(
-                       root_account.lookup_by_name('Expenses'))
+                       _root_account(s).lookup_by_name('Expenses'))
 
 
-def _is_budget_split(s, root_account):
+def _is_budget_split(s):
     return _is_regular_budget_acc(s.GetAccount()) \
                and s.GetAccount().HasAncestor(
-                       root_account.lookup_by_name('Budget'))
+                       _root_account(s).lookup_by_name('Budget'))
 
 
-def _expense_to_budget_split_matching(t, root_account, account_matching):
+def _expense_to_budget_split_matching(t):
+    account_matching = _expense_to_budget_matching(_root_account(t))
     split_list = t.GetSplitList()
     expense_splits = {s for s in split_list
-                        if _is_expense_split(s, root_account)}
+                        if _is_expense_split(s)}
     budget_splits  = {s for s in split_list
-                        if _is_budget_split(s, root_account)}
+                        if _is_budget_split(s)}
 
     # Note: You might think that a map comprehension would be better and more
     # functional here, but it doesn't work. There might be transactions with
@@ -221,9 +242,8 @@ def _add_budget_entries(t):
 
 
 def add_budget_entries(session, start_date=None):
-    root_account = session.book.get_root_account()
+    root_account = _root_account(session)
     _ensure_mandatory_structure(root_account)
-    account_matching = _expense_to_budget_matching(root_account)
 
     for t in _trxs_for_budget(account_matching, start_date):
         t.BeginEdit()

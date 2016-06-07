@@ -249,7 +249,5 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                 new_transaction(self.session.book,
                                 "weekly shopping",
                                 [("Expenses.Everyday.Groceries", 100),
-                                 ("Assets.Cash", -100)]),
-                self.session.book.get_root_account(),
-                mut._expense_to_budget_matching(self.session.book.get_root_account())))
+                                 ("Assets.Cash", -100)])))
 
