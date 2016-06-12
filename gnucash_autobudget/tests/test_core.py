@@ -6,6 +6,7 @@
 
 from functools import partial
 import os
+import shutil
 import tempfile
 from unittest import TestCase
 
@@ -28,13 +29,14 @@ class SessionTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         # TODO: Need to use a temporary directory!
+        cls._session_dir_path = tempfile.mkdtemp(prefix="gcabtmp")
         _session_file_handle, cls._session_file_name \
-            = tempfile.mkstemp(suffix=".gnucash")
+            = tempfile.mkstemp(suffix=".gnucash", dir=cls._session_dir_path)
         os.close(_session_file_handle)
 
     @classmethod
     def tearDownClass(cls):
-        os.unlink(cls._session_file_name)
+        shutil.rmtree(cls._session_dir_path)
 
     def setUp(self):
         self.session = Session("xml://{}".format(self._session_file_name),
@@ -79,10 +81,8 @@ def new_split(book, account_nm, value):
     return s
 
 
-def new_transaction(book, description, entries):
+def new_transaction(book, description, splits):
     t = Transaction(book)
-    splits = [new_split(book, account_nm, value)
-                  for account_nm, value in entries]
 
     t.BeginEdit()
     t.SetCurrency(book.get_table().lookup('CURRENCY', 'EUR'))
@@ -243,11 +243,23 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                           [account("Rent", ASSET)])])])
 
     def test_easiest_trx(self):
+        split = partial(new_split, self.session.book)
+
         self.assertEqual(
             {},
             mut._expense_to_budget_split_matching(
                 new_transaction(self.session.book,
                                 "weekly shopping",
-                                [("Expenses.Everyday.Groceries", 100),
-                                 ("Assets.Cash", -100)])))
+                                [split("Expenses.Everyday.Groceries", 100),
+                                 split("Assets.Cash", -100)])))
 
+        edsplit = split("Expenses.Everyday.Groceries", 100)
+        ecsplit = split("Assets.Cash", -100)
+        bdsplit = split("Budget.Budgeted Funds", 100)
+        bcsplit = split("Budget.Everyday.Groceries", -100)
+        self.assertEqual(
+            {edsplit: bcsplit},
+            mut._expense_to_budget_split_matching(
+                new_transaction(self.session.book,
+                                "weekly shopping",
+                                [edsplit, ecsplit, bdsplit, bcsplit])))

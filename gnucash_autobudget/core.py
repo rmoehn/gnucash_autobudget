@@ -82,7 +82,7 @@ def _root_account(o):
     elif isinstance(o, Split):
         return _root_account(o.GetAccount())
     else:
-        raise ValueError(
+        raise TypeError(
             "Cannot find root account for this object: {}".format(o))
 
 
@@ -211,6 +211,9 @@ def _is_budget_split(s):
 
 def _expense_to_budget_split_matching(t):
     account_matching = ExpenseToBudgetAccountMatching(_root_account(t))
+    print {ea.get_full_name(): ba.get_full_name() for ea, ba in
+            account_matching.items()}
+    print account_matching
     split_list = t.GetSplitList()
     expense_splits = {s for s in split_list
                         if _is_expense_split(s)}
@@ -234,9 +237,10 @@ def _expense_to_budget_split_matching(t):
     # shouldn't try to be too sophisticated for this small project.
     es2bs = {}
     for es in expense_splits:
+        print _stringify_split(es)
         bs = next((bs for bs in budget_splits
-                      if bs.GetAmount() == -es.GetAmount()
-                          and bs.GetAccount() == account_matching[es]),
+                      if bs.GetAmount().equal(es.GetAmount().neg())
+                          and bs.GetAccount() == account_matching[es.GetAccount()]),
                   None)
         if bs:
             es2bs[es] = bs
