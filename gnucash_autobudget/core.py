@@ -5,6 +5,7 @@
 
 # Credits: https://github.com/hjacobs/gnucash-fiximports/blob/master/fiximports.py
 
+import collections
 from datetime import date
 import re
 import textwrap
@@ -131,8 +132,48 @@ def _expense_to_budget_matching(root_account):
                               re.sub(r"\ABudget", "Expenses",
                                      ba.get_full_name()))
                           for ba in budget_accs}
-    return {e: b for b, e in budget2expense.items()
+    return {e.get_full_name(): b.get_full_name()
+                 for b, e in budget2expense.items()
                  if e and _is_regular_expense_acc(e)}
+
+
+class AccountMatchingIterator(collections.Iterator):
+    def __init__(self, account_matching):
+        self.account_matching = account_matching
+        self.am_iter = account_matching.matching.__iter__()
+
+
+    def next(self):
+        # pylint: disable=protected-access
+        return self.account_matching.root_account.lookup_by_full_name(
+                    self.am_iter.next())
+
+
+class ExpenseToBudgetAccountMatching(collections.Mapping):
+    def __init__(self, root_account):
+        self.root_account = root_account
+        self.matching     = _expense_to_budget_matching(root_account)
+
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return self.root_account.lookup_by_full_name(self.matching[key])
+        elif isinstance(key, Account):
+            return self.__getitem__(key.get_full_name())
+        else:
+            raise TypeError("Can only look up str and Account key in"
+                            " ExpenseToBudgetAccountMatching. {} doesn't work."\
+                                .format(key))
+
+
+    def __iter__(self):
+        return AccountMatchingIterator(self)
+
+
+    def __len__(self):
+        return self.matching.__len__()
+
+
 
 
 # Hm, which transactions to we want to add to?
@@ -169,7 +210,7 @@ def _is_budget_split(s):
 
 
 def _expense_to_budget_split_matching(t):
-    account_matching = _expense_to_budget_matching(_root_account(t))
+    account_matching = ExpenseToBudgetAccountMatching(_root_account(t))
     split_list = t.GetSplitList()
     expense_splits = {s for s in split_list
                         if _is_expense_split(s)}

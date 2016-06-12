@@ -160,7 +160,7 @@ class TestExpenseToBudgetMatching(SessionTestCase):
         account  = partial(new_account, self.session.book)
         paccount = partial(new_account, self.session.book, is_placeholder=True)
 
-        matching = mut._expense_to_budget_matching(
+        matching = mut.ExpenseToBudgetAccountMatching(
                        account("Root", ROOT,
                            [account("Expenses", EXPENSE,
                                 [paccount("Everyday", EXPENSE,
@@ -190,7 +190,7 @@ class TestExpenseToBudgetMatching(SessionTestCase):
         account  = partial(new_account, self.session.book)
         paccount = partial(new_account, self.session.book, is_placeholder=True)
 
-        matching = mut._expense_to_budget_matching(
+        matching = mut.ExpenseToBudgetAccountMatching(
                        account("Root", ROOT,
                            [account("Expenses", EXPENSE,
                                 [paccount("Everyday", EXPENSE,
