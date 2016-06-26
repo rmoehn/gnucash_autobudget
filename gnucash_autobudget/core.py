@@ -148,31 +148,6 @@ class AccountMatchingIterator(collections.Iterator):
                     self.am_iter.next())
 
 
-class ExpenseToBudgetAccountMatching(collections.Mapping):
-    def __init__(self, root_account):
-        self.root_account = root_account
-        self.matching     = _expense_to_budget_matching(root_account)
-
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            return self.root_account.lookup_by_full_name(self.matching[key])
-        elif isinstance(key, Account):
-            return self.__getitem__(key.get_full_name())
-        else:
-            raise TypeError("Can only look up str and Account key in"
-                            " ExpenseToBudgetAccountMatching. {} doesn't work."\
-                                .format(key))
-
-
-    def __iter__(self):
-        return AccountMatchingIterator(self)
-
-
-    def __len__(self):
-        return self.matching.__len__()
-
-
 class IndirectMappingIterator(collections.Iterator):
     def __init__(self, indirect_mapping):
         self.indirect_mapping = indirect_mapping
@@ -267,6 +242,35 @@ class IndirectMapping(collections.Mapping):
         return self.map.__len__()
 
 
+class ExpenseToBudgetAccountMatching(IndirectMapping):
+    @classmethod
+    def map_fn(cls, root_account):
+        budget_accs  = [a for a in
+                        root_account.lookup_by_name("Budget").get_descendants()
+                        if _is_regular_budget_acc(a)]
+        budget2expense = {ba: root_account.lookup_by_full_name(
+                                re.sub(r"\ABudget", "Expenses",
+                                        ba.get_full_name()))
+                            for ba in budget_accs}
+        return {cls.project(e): b
+                    for b, e in budget2expense.items()
+                    if e and _is_regular_expense_acc(e)}
+
+
+    @classmethod
+    def project(cls, account):
+        try:
+            return account.get_full_name()
+        except (AttributeError, TypeError):
+            raise TypeError("Cannot get full name of {}. I expected an object"
+                            " of type Account, but this must be something else."
+                                .format(account))
+
+
+    def unproject(self, full_account_name):
+        return self.registry.lookup_by_full_name(full_account_name)
+
+
 
 # Hm, which transactions to we want to add to?
 # - If the transaction has a Split on an expense account, but no Split on the
@@ -306,77 +310,67 @@ def _is_match(account_matching, expense_split, budget_split):
                        == account_matching[ expense_split.GetAccount() ]\
                               .get_full_name()
 
-def _expense_to_budget_split_matching(t):
-    account_matching = ExpenseToBudgetAccountMatching(_root_account(t))
-    print {ea.get_full_name(): ba.get_full_name() for ea, ba in
-            account_matching.items()}
-    print account_matching
-    split_list = t.GetSplitList()
-    expense_splits = {s for s in split_list
-                        if _is_expense_split(s)}
-    budget_splits  = {s for s in split_list
-                        if _is_budget_split(s)}
+class ExpenseToBudgetSplitMatching(IndirectMapping):
+    @classmethod
+    def map_fn(cls, transaction):
+        account_matching = ExpenseToBudgetAccountMatching(
+                               _root_account(transaction))
+        print {ea.get_full_name(): ba.get_full_name() for ea, ba in
+                account_matching.items()}
+        print account_matching
+        split_list = transaction.GetSplitList()
+        expense_splits = {s for s in split_list
+                            if _is_expense_split(s)}
+        budget_splits  = {s for s in split_list
+                            if _is_budget_split(s)}
 
-    # Note: You might think that a map comprehension would be better and more
-    # functional here, but it doesn't work. There might be transactions with
-    # multiple splits having the same amount and budget account. If we didn't
-    # remove them from the list of available budget splits, two expense splits
-    # might end up matched to the same budget split:
-    #
-    #     es1 = Expenses:Everyday:Food   4
-    #     es2 = Expenses:Everyday:Food   4
-    #     bs1 = Budget:Everyday:Food        4
-    #     bs2 = Budget:Everyday:Food        4
-    #
-    #     Matching: es1 → bs1, es2 → bs1
-    #
-    # I almost used a reduce() with Pyrsistent data structures here, but I
-    # shouldn't try to be too sophisticated for this small project.
-    es2bs = {}
-    for es in expense_splits:
-        print _stringify_split(es)
-        bs = next((bs for bs in budget_splits
-                      if _is_match(account_matching, es, bs)),
-                  None)
-        if bs:
-            es2bs[es.GetGUID().to_string()] = bs
-            budget_splits.remove(bs)
+        # Note: You might think that a map comprehension would be better and more
+        # functional here, but it doesn't work. There might be transactions with
+        # multiple splits having the same amount and budget account. If we didn't
+        # remove them from the list of available budget splits, two expense splits
+        # might end up matched to the same budget split:
+        #
+        #     es1 = Expenses:Everyday:Food   4
+        #     es2 = Expenses:Everyday:Food   4
+        #     bs1 = Budget:Everyday:Food        4
+        #     bs2 = Budget:Everyday:Food        4
+        #
+        #     Matching: es1 → bs1, es2 → bs1
+        #
+        # I almost used a reduce() with Pyrsistent data structures here, but I
+        # shouldn't try to be too sophisticated for this small project.
+        es2bs = {}
+        for es in expense_splits:
+            print _stringify_split(es)
+            bs = next((bs for bs in budget_splits
+                        if _is_match(account_matching, es, bs)),
+                    None)
+            if bs:
+                es2bs[cls.project(es)] = bs
+                budget_splits.remove(bs)
 
-    return es2bs
-
-
-class SplitMatchingIterator(collections.Iterator):
-    def __init__(self, split_matching):
-        self.split_matching = split_matching
-        self.sm_iter        = split_matching.matching.__iter__()
+        return es2bs
 
 
-    def next(self):
-        return look_up_split(split_matching.transaction,
-                                self.sm_iter.next())
+    @classmethod
+    def project(cls, split):
+        try:
+            return split.GetGUID().to_string()
+        except (AttributeError, TypeError):
+            raise TypeError("Cannot get GUID of {}. I expected an object of"
+                            " type Split, but this must be something else."
+                                .format(split))
 
 
-
-class ExpenseToBudgetSplitMatching(collections.Mapping):
     def __init__(self, transaction):
-        self.transaction = transaction
-        self.matching    = _expense_to_budget_split_matching(transaction)
+        super(ExpenseToBudgetSplitMatching, self).__init__(transaction)
+        self.guid_to_split = {s.GetGUID().to_string(): s
+                                  for s in transaction.GetSplitList()}
 
 
-    def __getitem__(self, key):
-        if isinstance(key, Split):
-            return self.matching[key.GetGUID().to_string()]
-        else:
-            raise TypeError("Can only look up keys of type Split in"
-                            " ExpenseToBudgetSplitMatching. {} doesn't work."
-                                .format(key))
+    def unproject(self, guid):
+        return self.guid_to_split[guid]
 
-    def __iter__(self):
-        return SplitMatchingIterator(self)
-
-
-    def __len__(self):
-        return self.matching.__len__()
 
 
 def _matching_budget_split(t, s):
