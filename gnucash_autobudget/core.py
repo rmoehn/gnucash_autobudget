@@ -144,7 +144,6 @@ class AccountMatchingIterator(collections.Iterator):
 
 
     def next(self):
-        # pylint: disable=protected-access
         return self.account_matching.root_account.lookup_by_full_name(
                     self.am_iter.next())
 
@@ -208,6 +207,11 @@ def _is_budget_split(s):
                and s.GetAccount().HasAncestor(
                        _root_account(s).lookup_by_name('Budget'))
 
+def _is_match(account_matching, expense_split, budget_split):
+    return budget_split.GetAmount().equal(expense_split.GetAmount().neg()) \
+               and budget_split.GetAccount().get_full_name() \
+                       == account_matching[ expense_split.GetAccount() ]\
+                              .get_full_name()
 
 def _expense_to_budget_split_matching(t):
     account_matching = ExpenseToBudgetAccountMatching(_root_account(t))
@@ -239,8 +243,7 @@ def _expense_to_budget_split_matching(t):
     for es in expense_splits:
         print _stringify_split(es)
         bs = next((bs for bs in budget_splits
-                      if bs.GetAmount().equal(es.GetAmount().neg())
-                          and bs.GetAccount() == account_matching[es.GetAccount()]),
+                      if _is_match(account_matching, es, bs)),
                   None)
         if bs:
             es2bs[es] = bs
@@ -262,10 +265,9 @@ def _matching_budget_split(t, s):
 #  - A matched Split is a Split for which we can find a budget Split with a
 #    parallel account that doesn't belong to any other matched Split.
 def _unmatched_splits(t):
+    matched_splits = _expense_to_budget_split_matching(t)
     return {s for s in t.GetSplitList()
-              if s.GetAccount().HasAncestor(
-                     root_account.lookup_by_name("Expenses"))
-                  and not _matching_budget_split(t, s)}
+              if _is_expense_split(s) and not t in matched_splits}
 
 
 def _unbalanced_splits(t):
