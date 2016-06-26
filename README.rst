@@ -165,14 +165,14 @@ Multi-currency splits work, too. Input::
     #                              debit  credit
     Expenses:Everyday:Groceries    2 €
     Currency Trading:CURRENCY:JPY  250
-    Assets:Cash:Yen                       250
+    Assets:Yen                            250
     Currency Trading:CURRENCY:EUR         2 €
     
 Output::
 
     Expenses:Everyday:Groceries    2 €
     Currency Trading:CURRENCY:JPY  250
-    Assets:Cash:Yen                       250
+    Assets:Yen                            250
     Currency Trading:CURRENCY:EUR         2 €
     Budget:Budgeted Funds          2 €
     Budget:Everyday:Groceries             2 €
