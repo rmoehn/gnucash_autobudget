@@ -26,6 +26,8 @@ class SessionTestCase(TestCase):
     A :py:class:`TestCase` providing :py:class:`gnucash.Session` setup and teardown.
     """
 
+    ### Setup and teardown
+
     # Note: I suspect that creating and deleting a temporary file for every test
     # method would be too much. We're not writing to it anyway. This is why I
     # implement this as a setUpClass(). If you have a different opinion, tell
@@ -50,55 +52,68 @@ class SessionTestCase(TestCase):
         self.session.end()
         self.session.destroy()
 
+
+    ### Extra assertions
+
     def assertGUIDMapsEqual(self, matching1, matching2):
         return self.assertEqual(guid_map(matching1), guid_map(matching2))
 
 
-#### Helper procedures
+    ### Convenience constructors
 
-def new_account(book, name, acct_type, children=None, is_placeholder=False):
-    acct = Account(book)
-    acct.SetName(name)
-    if name == 'Root':
-        book.set_root_account(acct)
-    else:
-        acct.SetCommodity(book.get_table().lookup('CURRENCY', 'EUR'))
+    def new_account(self, name, acct_type, children=None, is_placeholder=False):
+        acct = Account(self.session.book)
+        acct.SetName(name)
+        if name == 'Root':
+            self.session.book.set_root_account(acct)
+        else:
+            acct.SetCommodity(self.session.book.get_table().lookup('CURRENCY',
+                                                                   'EUR'))
 
-    acct.SetType(acct_type)
-    acct.SetPlaceholder(is_placeholder)
-    for c in children or []:
-        acct.append_child(c)
+        acct.SetType(acct_type)
+        acct.SetPlaceholder(is_placeholder)
+        for c in children or []:
+            acct.append_child(c)
 
-    return acct
-
-
-def new_split(book, account_nm, value):
-    if not isinstance(value, int):
-        raise NotImplementedError("This only handles ints. You provided {}."\
-                                      .format(value))
-
-    if value >= 0:
-        num = GncNumeric(value, 1)
-    else:
-        num = GncNumeric(-value, 1).neg()
-
-    s = Split(book)
-    s.SetValue(num)
-    s.SetAccount(book.get_root_account().lookup_by_full_name(account_nm))
-    return s
+        return acct
 
 
-def new_transaction(book, description, splits):
-    t = Transaction(book)
+    def new_split(self, account_nm, value):
+        if not isinstance(value, int):
+            raise NotImplementedError("This only handles ints. You provided {}."\
+                                        .format(value))
 
-    t.BeginEdit()
-    t.SetCurrency(book.get_table().lookup('CURRENCY', 'EUR'))
-    t.SetDescription(description)
-    for s in splits:
-        s.SetParent(t)
-    t.CommitEdit()
+        if value >= 0:
+            num = GncNumeric(value, 1)
+        else:
+            num = GncNumeric(-value, 1).neg()
 
-    return t
+        s = Split(self.session.book)
+        s.SetValue(num)
+        s.SetAccount(self.session.book.get_root_account()
+                                      .lookup_by_full_name(account_nm))
+        return s
+
+
+    def new_transaction(self, description, splits):
+        t = Transaction(self.session.book)
+
+        t.BeginEdit()
+        t.SetCurrency(self.session.book.get_table().lookup('CURRENCY', 'EUR'))
+        t.SetDescription(description)
+        for s in splits:
+            s.SetParent(t)
+        t.CommitEdit()
+
+        return t
+
+
+
+    def __init__(self, *args, **kwargs):
+        super(SessionTestCase, self).__init__(*args, **kwargs)
+
+        # Partially applied convenience constructors
+        self.paccount = partial(self.new_account, is_placeholder=True)
 
 
 #### Class for testing _ensure_mandatory_structure()
@@ -113,7 +128,7 @@ ROOT = gc.ACCT_TYPE_ROOT
 # REFACTOR: Move the partials out. (RM 2016-05-29)
 class TestEnsureMandatoryStructure(SessionTestCase):
     def test_all_proper(self):
-        account = partial(new_account, self.session.book)
+        account = self.new_account
 
         mut._ensure_mandatory_structure(
             account("Root", ROOT,
@@ -124,7 +139,7 @@ class TestEnsureMandatoryStructure(SessionTestCase):
 
 
     def test_additional_accounts_ok(self):
-        account = partial(new_account, self.session.book)
+        account = self.new_account
 
         mut._ensure_mandatory_structure(
             account("Root", ROOT,
@@ -138,7 +153,7 @@ class TestEnsureMandatoryStructure(SessionTestCase):
 
 
     def test_wrong_type(self):
-        account = partial(new_account, self.session.book)
+        account = self.new_account
 
         with self.assertRaises(mut.InputException):
             mut._ensure_mandatory_structure(
@@ -150,7 +165,7 @@ class TestEnsureMandatoryStructure(SessionTestCase):
 
 
     def test_acc_missing(self):
-        account = partial(new_account, self.session.book)
+        account = self.new_account
 
         with self.assertRaises(mut.InputException):
             mut._ensure_mandatory_structure(
@@ -164,8 +179,8 @@ class TestEnsureMandatoryStructure(SessionTestCase):
 
 class TestExpenseToBudgetMatching(SessionTestCase):
     def test_readme_example(self):
-        account  = partial(new_account, self.session.book)
-        paccount = partial(new_account, self.session.book, is_placeholder=True)
+        account  = self.new_account
+        paccount = self.paccount
 
         matching = mut.ExpenseToBudgetAccountMatching(
                        account("Root", ROOT,
@@ -194,8 +209,8 @@ class TestExpenseToBudgetMatching(SessionTestCase):
 
 
     def test_wrong_types_extra_budget(self):
-        account  = partial(new_account, self.session.book)
-        paccount = partial(new_account, self.session.book, is_placeholder=True)
+        account  = self.new_account
+        paccount = self.paccount
 
         matching = mut.ExpenseToBudgetAccountMatching(
                        account("Root", ROOT,
@@ -227,8 +242,8 @@ class TestExpenseToBudgetMatching(SessionTestCase):
 class TestExpenseToBudgetSplitMatching(SessionTestCase):
     def setUp(self):
         super(TestExpenseToBudgetSplitMatching, self).setUp()
-        account  = partial(new_account, self.session.book)
-        paccount = partial(new_account, self.session.book, is_placeholder=True)
+        account  = self.new_account
+        paccount = self.paccount
 
         self.root_account = account("Root", ROOT,
                                 [paccount("Assets", ASSET,
@@ -250,15 +265,14 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                           [account("Rent", ASSET)])])])
 
     def test_easiest_trx(self):
-        split = partial(new_split, self.session.book)
+        split = self.new_split
 
         self.assertGUIDMapsEqual(
             {},
             mut.ExpenseToBudgetSplitMatching(
-                new_transaction(self.session.book,
-                                "weekly shopping",
-                                [split("Expenses.Everyday.Groceries", 100),
-                                 split("Assets.Cash", -100)])))
+                self.new_transaction("weekly shopping",
+                                     [split("Expenses.Everyday.Groceries", 100),
+                                     split("Assets.Cash", -100)])))
 
         edsplit = split("Expenses.Everyday.Groceries", 100)
         ecsplit = split("Assets.Cash", -100)
@@ -267,6 +281,6 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
         self.assertGUIDMapsEqual(
             {edsplit: bcsplit},
             mut.ExpenseToBudgetSplitMatching(
-                new_transaction(self.session.book,
+                self.new_transaction(
                     "weekly shopping",
                     [edsplit, ecsplit, bdsplit, bcsplit])))
