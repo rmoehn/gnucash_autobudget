@@ -173,6 +173,94 @@ class ExpenseToBudgetAccountMatching(collections.Mapping):
         return self.matching.__len__()
 
 
+class IndirectMappingIterator(collections.Iterator):
+    def __init__(self, indirect_mapping):
+        self.indirect_mapping = indirect_mapping
+        self.im_iter          = indirect_mapping.__iter__()
+
+
+    def next(self):
+        return self.indirect_mapping.unproject( self.im_iter.next() )
+
+
+# TODO: Improve documentation. (RM 2016-06-26)
+class IndirectMapping(collections.Mapping):
+    """
+    Like a :py:class:`dict` for keys that are not suitable for :py:class:`dicts`
+
+    Structure:
+
+           project  map        unproject
+
+      obj1 ─┐
+      obj2 ─┴→ key1 → value1 → o ∈ [obj1](project) ─┐
+                                                    │
+      obj3 ──→ key2 → value2 → o ∈ [obj3](project) ─┤ returned by
+                                                    │ IndirectMapping.iter()
+      obj4 ─┬→ key3 → value3 → o ∈ [obj4](project) ─┘
+      obj5 ─┤
+      obj6 ─┘
+
+      o    ─────────→ v
+           IndirectMapping.__getitem__(o)
+
+    ``[obj](project)`` is the equivalence class of ``obj`` under the equivalence
+    relation ``~`` defined through ``project``: ``o1 ~ o2`` iff ``project(o1) ==
+    project(o2)``.
+
+    Since ``project`` is not an injective function, ``unproject`` can't be a
+    true inverse. The only guarantee is, that ``unproject(project(o)) ∈
+    [o](project)``, as indicated above.
+
+    Uses I can think of (key object = object that is projected onto a key):
+
+    - The key objects are mutable, but have an attribute that identifies them
+      uniquely. Since they are mutable, they cannot be dictionary keys directly.
+      Instead we use their unique attribute for defining the mapping. Without
+      :py:class:`IndirectMapping` you would do something like::
+
+        objA2objB = {a1.attr: b1,
+                     a2.attr: b2}
+        b2 = objA2objB[a2.attr]
+
+        for a in {find_a_for_attr(a) for a_attr in objA2objB.iter()}:
+            …
+
+    - You have some objects that are unequal (as determined with :py:obj:`==`),
+      and you can't or don't want to change their definitions of
+      :py:meth:``__eq__`` and :py:meth:``__hash__``, but you still want them to
+      count as the same keys in a mapping.
+    """
+
+    @staticmethod
+    def map_fn(registry):
+        raise NotImplementedError()
+
+
+    def __init__(self, registry):
+        self.registry = registry
+        self.map      = IndirectMapping.map_fn(registry)
+
+
+    def project(self, keyo):
+        raise NotImplementedError()
+
+
+    def unproject(self, key):
+        raise NotImplementedError()
+
+
+    def __getitem__(self, key):
+        return self.map[self.indirect_key_to_key(key)]
+
+
+    def __iter__(self):
+        return IndirectMappingIterator(self)
+
+
+    def __len__(self):
+        return self.map.__len__()
+
 
 
 # Hm, which transactions to we want to add to?
