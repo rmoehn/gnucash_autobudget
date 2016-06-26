@@ -176,7 +176,7 @@ class ExpenseToBudgetAccountMatching(collections.Mapping):
 class IndirectMappingIterator(collections.Iterator):
     def __init__(self, indirect_mapping):
         self.indirect_mapping = indirect_mapping
-        self.im_iter          = indirect_mapping.__iter__()
+        self.im_iter          = indirect_mapping.map.__iter__()
 
 
     def next(self):
@@ -232,17 +232,18 @@ class IndirectMapping(collections.Mapping):
       count as the same keys in a mapping.
     """
 
-    @staticmethod
-    def map_fn(registry):
+    @classmethod
+    def map_fn(cls, registry):
         raise NotImplementedError()
 
 
     def __init__(self, registry):
         self.registry = registry
-        self.map      = IndirectMapping.map_fn(registry)
+        self.map      = self.map_fn(registry)
 
 
-    def project(self, keyo):
+    @classmethod
+    def project(cls, keyo):
         raise NotImplementedError()
 
 
@@ -251,7 +252,11 @@ class IndirectMapping(collections.Mapping):
 
 
     def __getitem__(self, key):
-        return self.map[self.indirect_key_to_key(key)]
+        try:
+            return self.map[self.project(key)]
+        except KeyError:
+            raise KeyError("Key object: '{}', true key: '{}'"
+                               .format(key, self.project(key)))
 
 
     def __iter__(self):
