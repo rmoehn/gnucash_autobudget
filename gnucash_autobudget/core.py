@@ -246,10 +246,44 @@ def _expense_to_budget_split_matching(t):
                       if _is_match(account_matching, es, bs)),
                   None)
         if bs:
-            es2bs[es] = bs
+            es2bs[es.GetGUID().to_string()] = bs
             budget_splits.remove(bs)
 
     return es2bs
+
+
+class SplitMatchingIterator(collections.Iterator):
+    def __init__(self, split_matching):
+        self.split_matching = split_matching
+        self.sm_iter        = split_matching.matching.__iter__()
+
+
+    def next(self):
+        return look_up_split(split_matching.transaction,
+                                self.sm_iter.next())
+
+
+
+class ExpenseToBudgetSplitMatching(collections.Mapping):
+    def __init__(self, transaction):
+        self.transaction = transaction
+        self.matching    = _expense_to_budget_split_matching(transaction)
+
+
+    def __getitem__(self, key):
+        if isinstance(key, Split):
+            return self.matching[key.GetGUID().to_string()]
+        else:
+            raise TypeError("Can only look up keys of type Split in"
+                            " ExpenseToBudgetSplitMatching. {} doesn't work."
+                                .format(key))
+
+    def __iter__(self):
+        return SplitMatchingIterator(self)
+
+
+    def __len__(self):
+        return self.matching.__len__()
 
 
 def _matching_budget_split(t, s):
