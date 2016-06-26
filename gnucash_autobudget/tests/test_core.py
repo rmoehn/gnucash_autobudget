@@ -239,6 +239,8 @@ class TestExpenseToBudgetMatching(SessionTestCase):
 
 #### Class for testing _expense_to_budget_split_matching
 
+# The following transactions are supposed to be the same as in the README. See
+# there for a neater presentation.
 class TestExpenseToBudgetSplitMatching(SessionTestCase):
     def setUp(self):
         super(TestExpenseToBudgetSplitMatching, self).setUp()
@@ -251,6 +253,8 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                  account("Expenses", EXPENSE,
                                      [paccount("Everyday", EXPENSE,
                                           [account("Groceries", EXPENSE),
+                                           account("Food", EXPENSE),
+                                           account("Drink", EXPENSE),
                                            account("Beer", EXPENSE),
                                            account("Transportation", EXPENSE)]),
                                       paccount("Monthly", EXPENSE,
@@ -260,6 +264,8 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                       account("Available to Budget", ASSET),
                                       paccount("Everyday", ASSET,
                                           [account("Groceries", ASSET),
+                                           account("Food", ASSET),
+                                           account("Drink", ASSET),
                                            account("Transportation", ASSET)]),
                                       paccount("Monthly", ASSET,
                                           [account("Rent", ASSET)])])])
@@ -274,12 +280,12 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                     [split("Expenses.Everyday.Groceries", 100),
                      split("Assets.Cash",                      -100)])))
 
-        edsplit = split("Expenses.Everyday.Groceries", 100)
-        ecsplit = split("Assets.Cash",                      -100)
-        bdsplit = split("Budget.Budgeted Funds",       100)
-        bcsplit = split("Budget.Everyday.Groceries",        -100)
+        egsplit = split("Expenses.Everyday.Groceries", 100)
+        acsplit = split("Assets.Cash",                      -100)
+        bbsplit = split("Budget.Budgeted Funds",       100)
+        bgsplit = split("Budget.Everyday.Groceries",        -100)
         self.assertGUIDMapsEqual(
-            {edsplit: bcsplit},
+            {egsplit: bgsplit},
             mut.ExpenseToBudgetSplitMatching(
                 self.new_transaction(
                     "weekly shopping",
