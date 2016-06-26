@@ -271,13 +271,13 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
             {},
             mut.ExpenseToBudgetSplitMatching(
                 self.new_transaction("weekly shopping",
-                                     [split("Expenses.Everyday.Groceries", 100),
-                                     split("Assets.Cash", -100)])))
+                    [split("Expenses.Everyday.Groceries", 100),
+                     split("Assets.Cash",                      -100)])))
 
         edsplit = split("Expenses.Everyday.Groceries", 100)
-        ecsplit = split("Assets.Cash", -100)
-        bdsplit = split("Budget.Budgeted Funds", 100)
-        bcsplit = split("Budget.Everyday.Groceries", -100)
+        ecsplit = split("Assets.Cash",                      -100)
+        bdsplit = split("Budget.Budgeted Funds",       100)
+        bcsplit = split("Budget.Everyday.Groceries",        -100)
         self.assertGUIDMapsEqual(
             {edsplit: bcsplit},
             mut.ExpenseToBudgetSplitMatching(
