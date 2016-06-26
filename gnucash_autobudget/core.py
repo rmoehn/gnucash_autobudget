@@ -255,8 +255,12 @@ def _matching_budget_split(t, s):
                                   _expense_to_budget_matching(s.GetAccount())}
 
 
-
-
+# What is a good way to determine unmatched splits?
+#
+#  - Matched and unmatched Splits are always expense Splits.
+#  - An unmatched Split is one that is in the set of matched Splits.
+#  - A matched Split is a Split for which we can find a budget Split with a
+#    parallel account that doesn't belong to any other matched Split.
 def _unmatched_splits(t):
     return {s for s in t.GetSplitList()
               if s.GetAccount().HasAncestor(
@@ -273,6 +277,21 @@ def _unbalanced_splits(t):
 
 
 
+# Matched Splits are expense Splits for which a budget Split with the same
+# amount and parallel account exists.
+#
+# Basic functionality:
+#  - We find unmatched expense Splits and add matching budget Splits. We can
+#    only add a matching budget Split if there is a parallel budget account for
+#    the expense account of the unmatched Split.
+#  - We check if the sum of the amounts of the expense splits matches the sum of
+#    the amounts of the budget Splits.
+#
+# Everything else will catch more errors, but will also not understand manual
+# adjustments. For example, if the money for two expense accounts was budgeted
+# on a single budget account, I'd have to adjust the transaction manually, but
+# GnuCash Autobudget wouldn't know how to deal with that and warn about
+# imbalances.
 def _add_budget_entries(t):
     for s in _unmatched_splits(t):
         if s.GetAccount() in account_matching:
