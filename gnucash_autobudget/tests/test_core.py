@@ -17,6 +17,10 @@ from gnucash_autobudget import core as mut
 
 #### Custom TestCase
 
+def guid_map(gc_obj_mapping):
+    return {k.GetGUID().to_string(): v.GetGUID().to_string()
+                for k, v in gc_obj_mapping.items()}
+
 class SessionTestCase(TestCase):
     """
     A :py:class:`TestCase` providing :py:class:`gnucash.Session` setup and teardown.
@@ -45,6 +49,9 @@ class SessionTestCase(TestCase):
     def tearDown(self):
         self.session.end()
         self.session.destroy()
+
+    def assertGUIDMapsEqual(self, matching1, matching2):
+        return self.assertEqual(guid_map(matching1), guid_map(matching2))
 
 
 #### Helper procedures
@@ -245,9 +252,9 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
     def test_easiest_trx(self):
         split = partial(new_split, self.session.book)
 
-        self.assertEqual(
+        self.assertGUIDMapsEqual(
             {},
-            mut._expense_to_budget_split_matching(
+            mut.ExpenseToBudgetSplitMatching(
                 new_transaction(self.session.book,
                                 "weekly shopping",
                                 [split("Expenses.Everyday.Groceries", 100),
@@ -257,9 +264,9 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
         ecsplit = split("Assets.Cash", -100)
         bdsplit = split("Budget.Budgeted Funds", 100)
         bcsplit = split("Budget.Everyday.Groceries", -100)
-        self.assertEqual(
+        self.assertGUIDMapsEqual(
             {edsplit: bcsplit},
-            mut._expense_to_budget_split_matching(
+            mut.ExpenseToBudgetSplitMatching(
                 new_transaction(self.session.book,
-                                "weekly shopping",
-                                [edsplit, ecsplit, bdsplit, bcsplit])))
+                    "weekly shopping",
+                    [edsplit, ecsplit, bdsplit, bcsplit])))
