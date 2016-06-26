@@ -150,8 +150,8 @@ Output::
 Sometimes you get refunds on your expenses. Credit transactions to expense
 accounts work, too. Input::
 
-    Expenses:Everyday:Food              5
     Assets:Cash                  5
+    Expenses:Everyday:Food              5
 
 Output::
 
