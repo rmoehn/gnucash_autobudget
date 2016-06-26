@@ -289,4 +289,45 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
             mut.ExpenseToBudgetSplitMatching(
                 self.new_transaction(
                     "weekly shopping",
-                    [edsplit, ecsplit, bdsplit, bcsplit])))
+                    [egsplit, acsplit, bbsplit, bgsplit])))
+
+
+    def test_multisplit_trx(self):
+        split = self.new_split
+
+        efsplit = split("Expenses.Everyday.Food",  100)
+        edsplit = split("Expenses.Everyday.Drink", 100)
+        acsplit = split("Assets.Cash",                  -200)
+        bbsplit = split("Budget.Budgeted Funds",   100)
+        bfsplit = split("Budget.Everyday.Food",         -100)
+        self.assertGUIDMapsEqual(
+            {efsplit: bfsplit},
+            mut.ExpenseToBudgetSplitMatching(
+                self.new_transaction(
+                    "weekly shopping drink not yet budgeted",
+                    [efsplit, edsplit, acsplit, bbsplit, bfsplit])))
+
+        bbsplit = split("Budget.Budgeted Funds",   200)
+        bdsplit = split("Budget.Everyday.Drink",        -100)
+        self.assertGUIDMapsEqual(
+            {efsplit: bfsplit,
+             edsplit: bdsplit},
+            mut.ExpenseToBudgetSplitMatching(
+                self.new_transaction(
+                    "weekly shopping drink not yet budgeted",
+                    [efsplit, edsplit, acsplit, bbsplit, bfsplit, bdsplit])))
+
+
+    def test_refund_trx(self):
+        split = self.new_split
+
+        acsplit = split("Assets.Cash",            5)
+        efsplit = split("Expenses.Everyday.Food",      -5)
+        bfsplit = split("Budget.Everyday.Food",   5)
+        bbsplit = split("Budget.Budgeted Funds",       -5)
+        self.assertGUIDMapsEqual(
+            {efsplit: bfsplit},
+            mut.ExpenseToBudgetSplitMatching(
+                self.new_transaction(
+                    "got back some money",
+                    [acsplit, efsplit, bfsplit, bbsplit])))
