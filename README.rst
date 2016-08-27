@@ -1,6 +1,11 @@
 GnuCash Autobudget
 ==================
 
+**NOTE** This program is under development and doesn't work yet. Strangely
+enough, the README is fairly complete, though. Sorry! I will try to continue
+development by the end of October 2016. If you want to help out even before
+that, send me a message!
+
 .. contents::
 
 
