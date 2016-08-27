@@ -4,6 +4,9 @@
 # Note: No unicode literals, because the GnuCash Python bindings don't like
 # unicode.
 
+from __future__ import print_function
+import sys
+
 from functools import partial
 import os
 import shutil
@@ -47,6 +50,7 @@ class SessionTestCase(TestCase):
     def setUp(self):
         self.session = Session("xml://{}".format(self._session_file_name),
                                is_new=True)
+        self.session.book.use_trading_accounts(True)
 
     def tearDown(self):
         self.session.end()
@@ -61,14 +65,17 @@ class SessionTestCase(TestCase):
 
     ### Convenience constructors
 
-    def new_account(self, name, acct_type, children=None, is_placeholder=False):
+    def new_account(self, name, acct_type, children=None, is_placeholder=False,
+            currency=None):
+        # pylint: disable=too-many-arguments
         acct = Account(self.session.book)
         acct.SetName(name)
         if name == 'Root':
             self.session.book.set_root_account(acct)
         else:
-            acct.SetCommodity(self.session.book.get_table().lookup('CURRENCY',
-                                                                   'EUR'))
+            acct.SetCommodity(
+                self.session.book.get_table().lookup('CURRENCY',
+                                                     currency or 'EUR'))
 
         acct.SetType(acct_type)
         acct.SetPlaceholder(is_placeholder)
@@ -119,11 +126,12 @@ class SessionTestCase(TestCase):
 #### Class for testing _ensure_mandatory_structure()
 
 # Make the following code more readable.
-ASSET = gc.ACCT_TYPE_ASSET
-EQUITY = gc.ACCT_TYPE_EQUITY
-EXPENSE = gc.ACCT_TYPE_EXPENSE
+ASSET     = gc.ACCT_TYPE_ASSET
+EQUITY    = gc.ACCT_TYPE_EQUITY
+EXPENSE   = gc.ACCT_TYPE_EXPENSE
 LIABILITY = gc.ACCT_TYPE_LIABILITY
-ROOT = gc.ACCT_TYPE_ROOT
+ROOT      = gc.ACCT_TYPE_ROOT
+TRADING   = gc.ACCT_TYPE_TRADING
 
 # REFACTOR: Move the partials out. (RM 2016-05-29)
 class TestEnsureMandatoryStructure(SessionTestCase):
@@ -249,7 +257,8 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
 
         self.root_account = account("Root", ROOT,
                                 [paccount("Assets", ASSET,
-                                     [account("Cash", ASSET)]),
+                                     [account("Cash", ASSET),
+                                      account("Yen", ASSET, currency='JPY')]),
                                  account("Expenses", EXPENSE,
                                      [paccount("Everyday", EXPENSE,
                                           [account("Groceries", EXPENSE),
@@ -268,7 +277,12 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                                            account("Drink", ASSET),
                                            account("Transportation", ASSET)]),
                                       paccount("Monthly", ASSET,
-                                          [account("Rent", ASSET)])])])
+                                          [account("Rent", ASSET)])]),
+                                 paccount("Trading", TRADING,
+                                     [paccount("CURRENCY", TRADING,
+                                          [account("JPY", TRADING,
+                                                   currency='JPY'),
+                                           account("EUR", TRADING)])])])
 
     def test_easiest_trx(self):
         split = self.new_split
@@ -331,3 +345,19 @@ class TestExpenseToBudgetSplitMatching(SessionTestCase):
                 self.new_transaction(
                     "got back some money",
                     [acsplit, efsplit, bfsplit, bbsplit])))
+
+
+    def test_multi_currency(self):
+        split = self.new_split
+
+        trx = self.new_transaction(
+                "shopping in Japan",
+                [split("Expenses.Everyday.Groceries", 2),
+                    split("Assets.Yen",                     -200),
+                    split("Trading.CURRENCY.JPY",      200),
+                    split("Trading.CURRENCY.EUR",           -2)])
+
+        print(self.session.book.use_trading_accounts(), file=sys.stderr)
+        print(trx.UseTradingAccounts(), file=sys.stderr)
+        print(mut._stringify_trx(trx), file=sys.stderr)
+
