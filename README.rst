@@ -5,6 +5,10 @@ GnuCash Autobudget
 enough, the README is fairly complete, though. Sorry! I'm not sure when I
 will continue development. If you want to get involved, send me a message!
 
+**UPDATE 2017** I've started using hledger with hledger-rewrite for my
+accounting and budgeting, so I won't continue working on GnuCash Autobudget.
+Sorry! Feel free to take over the code.
+
 .. contents::
 
 
